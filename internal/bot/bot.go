@@ -6,7 +6,7 @@ import (
 	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/youniverse-13/Telegram-Waifu-Bot/internal/characters"
+	"github.com/yuniverse-13/Telegram-Waifu-Bot/internal/characters"
 )
 
 type Bot struct {

@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/youniverse-13/Telegram-Waifu-Bot/internal/bot"
+	"github.com/yuniverse-13/Telegram-Waifu-Bot/internal/bot"
 )
 
 func main() {
