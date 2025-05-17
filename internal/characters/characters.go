@@ -1,11 +1,11 @@
 package characters
 
 type Character struct {
-	ID					int
-	Name				string
-	Description	string
-	ImageURL		string
-	Rating			int
+	ID          int
+	Name        string
+	Description string
+	ImageURL    string
+	Rating      int
 }
 
 func GetSampleCharacter() Character {
