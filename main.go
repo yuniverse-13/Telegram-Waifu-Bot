@@ -12,7 +12,7 @@ func main() {
 
 	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if botToken == "" {
-		log.Fatalln("Bot token is empty")
+		log.Fatalln("Bot token is empty. Set environment variable TELEGRAM_BOT_TOKEN.")
 	}
 
 	myBot, err := bot.NewBot(botToken)
@@ -21,8 +21,8 @@ func main() {
 	}
 
 	if err := myBot.Start(); err != nil {
-		log.Fatalf("Bot encountered an error: %v", err)
+		log.Fatalf("Failed to start bot: %v", err)
 	}
 
-	log.Println("Bot finished.")
+	log.Println("The bot has finished its work.")
 }
