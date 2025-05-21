@@ -97,7 +97,12 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) {
 			if convErr == nil {
 				response = tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Персонаж с ID %d не найден.", charID))
 			} else {
-				response = tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Персонаж '%s' не найден.", args))
+				if args == "" {
+					responseText := fmt.Sprintln("После команды введите имя или ID персонажа. Например: /character Фрирен или /character 1")
+					response = tgbotapi.NewMessage(message.Chat.ID, responseText)
+				} else {
+					response = tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Персонаж '%s' не найден.", args))
+				}
 			}
 		}
 
