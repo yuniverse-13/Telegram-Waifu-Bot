@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -59,36 +60,52 @@ func (b *Bot) Start() error {
 func (b *Bot) handleCommand(message *tgbotapi.Message) {
 	var response tgbotapi.Chattable
 	var err error
+	
+	args := strings.TrimSpace(message.CommandArguments())
 
 	switch message.Command() {
 	case "start":
-		responseText := fmt.Sprintf("Привет, %s! Я твой Waifu бот. Используй /character <имя> или /randomcharacter, чтобы увидеть персонажа.", message.From.FirstName)
+		responseText := fmt.Sprintf("Привет, %s! Я твой Waifu бот. Используй /character <имя или ID> или /randomcharacter, чтобы увидеть персонажа.\n/info - Показать сообщение со списком команд", message.From.FirstName)
 		response = tgbotapi.NewMessage(message.Chat.ID, responseText)
 		
 	case "character":
-		charName := strings.TrimSpace(message.CommandArguments())
-		if charName == "" {
-			response = tgbotapi.NewMessage(message.Chat.ID, "Пожалуйста, укажи имя персонажа после команды /character.\nНапример: /character Фрирен")
+		if args == "" {
+			responseText := fmt.Sprintln("Укажите имя или ID персонажа. Например: /character Фрирен или /character 1")
+			response = tgbotapi.NewMessage(message.Chat.ID, responseText)
+		}
+		
+		var char characters.Character
+		var found bool
+		
+		charID, convErr := strconv.Atoi(args)
+		if convErr == nil {
+			char, found = characters.GetCharacterByID(charID)
 		} else {
-			char, found := characters.GetCharacterByName(charName)
-			if found {
-				caption := fmt.Sprintf("Имя: %s\nОписание: %s\nРейтинг: %.1f / 10", char.Name, char.Description, char.Rating)
-				if char.ImageURL != "" {
-					photoMsg := tgbotapi.NewPhoto(message.Chat.ID, tgbotapi.FileURL(char.ImageURL))
-					photoMsg.Caption = caption
-					response = photoMsg
-				} else {
-					response = tgbotapi.NewMessage(message.Chat.ID, caption + "\n(Изображение отсутствует)")
-				}
+			char, found = characters.GetCharacterByNameOrAlt(args)
+		}
+		
+		if found {
+			caption := fmt.Sprintf("Имя: %s\nОписание: %s\nРейтинг: %.1f из 10", char.Name, char.Description, char.Rating)
+			if char.ImageURL != "" {
+				photoMsg := tgbotapi.NewPhoto(message.Chat.ID, tgbotapi.FileURL(char.ImageURL))
+				photoMsg.Caption = caption
+				response = photoMsg
 			} else {
-				response = tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Персонаж '%s' не найден.", charName))
+				response = tgbotapi.NewMessage(message.Chat.ID, caption+"\n(Изображение отсутствует)")
+			}
+		} else {
+			if convErr == nil {
+				response = tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Персонаж с ID %d не найден.", charID))
+			} else {
+				response = tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Персонаж '%s' не найден.", args))
 			}
 		}
 
 	case "randomcharacter":
 		char, found := characters.GetRandomCharacter()
+		
 		if found {
-			caption := fmt.Sprintf("Случайный персонаж!\nИмя: %s\nОписание: %s\nРейтинг: %.1f / 10", char.Name, char.Description, char.Rating)
+			caption := fmt.Sprintf("Случайный персонаж!\nИмя: %s\nОписание: %s\nРейтинг: %.1f из 10", char.Name, char.Description, char.Rating)
 			if char.ImageURL != "" {
 				photoMsg := tgbotapi.NewPhoto(message.Chat.ID, tgbotapi.FileURL(char.ImageURL))
 				photoMsg.Caption = caption
@@ -99,6 +116,16 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) {
 		} else {
 			response = tgbotapi.NewMessage(message.Chat.ID, "В базе данных нет персонажей для отображения.")
 		}
+		
+	case "info":
+		infoText := `
+Доступные команды:
+/start - Приветственное сообщение
+/character <ID или имя> - Поиск персонажа по ID или имени. Пример: /character 1 или /character Фрирен
+/randomcharacter - Показать случайного персонажа
+/info - Показать это сообщение со списком команд
+`
+		response = tgbotapi.NewMessage(message.Chat.ID, infoText)
 		
 	default:
 		response = tgbotapi.NewMessage(message.Chat.ID, "Я не знаю такой команды.")
