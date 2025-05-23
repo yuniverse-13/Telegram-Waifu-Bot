@@ -13,10 +13,10 @@ import (
 
 type Bot struct {
 	api *tgbotapi.BotAPI
-	// Здесь можно добавить другие зависимости, например, сервис для работы с БД персонажей
+	charRepo *characters.CharacterRepository
 }
 
-func NewBot(token string) (*Bot, error) {
+func NewBot(token string, charRepo *characters.CharacterRepository) (*Bot, error) {
 	if token == "" {
 		return nil, errors.New("NewBot: токен пустой")
 	}
@@ -29,7 +29,7 @@ func NewBot(token string) (*Bot, error) {
 	api.Debug = true
 	log.Printf("Authorized on account %s (@%s)", api.Self.FirstName, api.Self.UserName)
 
-	return &Bot{api: api}, nil
+	return &Bot{api: api, charRepo: charRepo,}, nil
 }
 
 func (b *Bot) Start() error {
@@ -79,9 +79,9 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) {
 		
 		charID, convErr := strconv.Atoi(args)
 		if convErr == nil {
-			char, found = characters.GetCharacterByID(charID)
+			char, found = b.charRepo.GetCharacterByID(charID)
 		} else {
-			char, found = characters.GetCharacterByNameOrAlt(args)
+			char, found = b.charRepo.GetCharacterByNameOrAlt(args)
 		}
 		
 		if found {
@@ -107,7 +107,7 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) {
 		}
 
 	case "randomcharacter":
-		char, found := characters.GetRandomCharacter()
+		char, found := b.charRepo.GetRandomCharacter()
 		
 		if found {
 			caption := fmt.Sprintf("Случайный персонаж!\nИмя: %s\nОписание: %s\nРейтинг: %.1f из 10", char.Name, char.Description, char.Rating)
