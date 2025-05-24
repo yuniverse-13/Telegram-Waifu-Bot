@@ -1,32 +1,32 @@
-version: '3.8'
-
 services:
   postgres_db:
     image: postgres:17-alpine
     container_name: waifu_postgres
     environment:
       POSTGRES_USER: waifu_bot_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: waifu_bot_db
+      POSTGRES_PASSWORD: ${DB_PASSWORD_RAW}
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5432:5432"
+      - "${DB_PORT_HOST}:${DB_PORT_CONTAINER}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
       
   waifu_bot:
     build: .
     container_name: telegram_waifu_bot
     depends_on:
-      - postgres_db
+      postgres_db:
+        condition: service_healthy
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      DB_HOST: postgres_db
-      DB_PORT: 5432
-      DB_USER: waifu_bot_user
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: waifu_bot_db
-      DB_SSLMODE: disable
+      DATABASE_URL: "postgres://${DB_USER}:${DB_PASSWORD_URL_ENCODED}@postgres_db:${DB_PORT_CONTAINER}/${DB_NAME}?sslmode=${DB_SSLMODE}"
     restart: unless-stopped
     
 volumes:
-  postgres_data:
+  postgres_data:  

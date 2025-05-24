@@ -1,0 +1,1 @@
+DELETE FROM characters WHERE name IN ('Фрирен', 'Мегумин', 'Ферн', 'Сильфиетта', 'Рокси'); 

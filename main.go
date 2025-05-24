@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 
@@ -18,21 +17,11 @@ func main() {
 		log.Fatalln("Bot token is empty. Set environment variable TELEGRAM_BOT_TOKEN.")
 	}
 	
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	sslMode := os.Getenv("DB_SSLMODE")
-	
-	if dbHost == "" { dbHost = "localhost" }
-	if dbPort == "" { dbPort = "5432" }
-	if dbUser == "" { dbUser = "waifu_bot_user" }
-	if dbPassword == "" { log.Fatalln("DB_PASSWORD is not set") }
-	if dbName == "" { dbName = "waifu_bot_db" }
-	if sslMode == "" { sslMode = "disable" }
-		
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password='%s' dbname=%s sslmode=%s", dbHost, dbPort, dbUser, dbPassword, dbName, sslMode)
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		log.Fatal("FATAL: DATABASE_URL environment variable is not set.")
+	}
+	log.Printf("Using DATABASE_URL: %s\n", connStr)
 	
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -47,7 +36,6 @@ func main() {
 	log.Println("Successfully connected to the database!")
 	
 	charRepo := characters.NewCharacterRepository(db)
-	//characters.SeedInitialData(charRepo)
 
 	myBot, err := bot.NewBot(botToken, charRepo)
 	if err != nil {

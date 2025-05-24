@@ -84,8 +84,8 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) {
 			char, found = b.charRepo.GetCharacterByNameOrAlt(args)
 		}
 		
-		if found {
-			caption := fmt.Sprintf("Имя: %s\nОписание: %s\nРейтинг: %.1f из 10", char.Name, char.Description, char.Rating)
+		if found {			
+			caption := fmt.Sprintf("Имя: %s\nID: %d\n\nТайтл: %s\n\nОписание: %s\n\nРейтинг: %.1f из 10", char.Name, char.ID, char.Title, char.Description, char.Rating)
 			if char.ImageURL != "" {
 				photoMsg := tgbotapi.NewPhoto(message.Chat.ID, tgbotapi.FileURL(char.ImageURL))
 				photoMsg.Caption = caption
@@ -110,7 +110,7 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) {
 		char, found := b.charRepo.GetRandomCharacter()
 		
 		if found {
-			caption := fmt.Sprintf("Случайный персонаж!\nИмя: %s\nОписание: %s\nРейтинг: %.1f из 10", char.Name, char.Description, char.Rating)
+			caption := fmt.Sprintf("Случайный персонаж!\n\nИмя: %s\nID: %d\n\nТайтл: %s\n\nОписание: %s\n\nРейтинг: %.1f из 10", char.Name, char.ID, char.Title, char.Description, char.Rating)
 			if char.ImageURL != "" {
 				photoMsg := tgbotapi.NewPhoto(message.Chat.ID, tgbotapi.FileURL(char.ImageURL))
 				photoMsg.Caption = caption
