@@ -4,11 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/yuniverse-13/Telegram-Waifu-Bot/internal/bot/handlers"
 	"github.com/yuniverse-13/Telegram-Waifu-Bot/internal/characters"
+)
+
+const (
+	CommandStart           = "start"
+	CommandCharacter       = "character"
+	CommandRandomCharacter = "randomcharacter"
+	CommandInfo            = "info"
 )
 
 type Bot struct {
@@ -47,7 +53,7 @@ func (b *Bot) Start() error {
 		log.Printf("[%s (%d)] %s", update.Message.From.UserName, update.Message.Chat.ID, update.Message.Text)
 
 		if update.Message.IsCommand() {
-			b.handleCommand(update.Message)
+			b.handlerCommand(update.Message)
 		} else {
 			reply := tgbotapi.NewMessage(update.Message.Chat.ID, "Я понимаю только команды.")
 			b.api.Send(reply)
@@ -57,89 +63,26 @@ func (b *Bot) Start() error {
 	return nil
 }
 
-func (b *Bot) handleCommand(message *tgbotapi.Message) {
+func (b *Bot) handlerCommand(message *tgbotapi.Message) {
 	var response tgbotapi.Chattable
 	var err error
 	
-	args := strings.TrimSpace(message.CommandArguments())
-
 	switch message.Command() {
-	case "start":
-		responseText := fmt.Sprintf("Привет, %s! Я твой Waifu бот. Используй /character <имя или ID> или /randomcharacter, чтобы увидеть персонажа.\n/info - Показать сообщение со списком команд", message.From.FirstName)
-		response = tgbotapi.NewMessage(message.Chat.ID, responseText)
-		
-	case "character":
-		if args == "" {
-			responseText := fmt.Sprintln("Укажите имя или ID персонажа. Например: /character Фрирен или /character 1")
-			response = tgbotapi.NewMessage(message.Chat.ID, responseText)
-		}
-		
-		var char characters.Character
-		var found bool
-		
-		charID, convErr := strconv.Atoi(args)
-		if convErr == nil {
-			char, found = b.charRepo.GetCharacterByID(charID)
-		} else {
-			char, found = b.charRepo.GetCharacterByNameOrAlt(args)
-		}
-		
-		if found {			
-			caption := fmt.Sprintf("Имя: %s\nID: %d\n\nТайтл: %s\n\nОписание: %s\n\nРейтинг: %.1f из 10", char.Name, char.ID, char.Title, char.Description, char.Rating)
-			if char.ImageURL != "" {
-				photoMsg := tgbotapi.NewPhoto(message.Chat.ID, tgbotapi.FileURL(char.ImageURL))
-				photoMsg.Caption = caption
-				response = photoMsg
-			} else {
-				response = tgbotapi.NewMessage(message.Chat.ID, caption+"\n(Изображение отсутствует)")
-			}
-		} else {
-			if convErr == nil {
-				response = tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Персонаж с ID %d не найден.", charID))
-			} else {
-				if args == "" {
-					responseText := fmt.Sprintln("После команды введите имя или ID персонажа. Например: /character Фрирен или /character 1")
-					response = tgbotapi.NewMessage(message.Chat.ID, responseText)
-				} else {
-					response = tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Персонаж '%s' не найден.", args))
-				}
-			}
-		}
-
-	case "randomcharacter":
-		char, found := b.charRepo.GetRandomCharacter()
-		
-		if found {
-			caption := fmt.Sprintf("Случайный персонаж!\n\nИмя: %s\nID: %d\n\nТайтл: %s\n\nОписание: %s\n\nРейтинг: %.1f из 10", char.Name, char.ID, char.Title, char.Description, char.Rating)
-			if char.ImageURL != "" {
-				photoMsg := tgbotapi.NewPhoto(message.Chat.ID, tgbotapi.FileURL(char.ImageURL))
-				photoMsg.Caption = caption
-				response = photoMsg
-			} else {
-				response = tgbotapi.NewMessage(message.Chat.ID, caption+"\n(Изображение отсутствует)")
-			}
-		} else {
-			response = tgbotapi.NewMessage(message.Chat.ID, "В базе данных нет персонажей для отображения.")
-		}
-		
-	case "info":
-		infoText := `
-Доступные команды:
-/start - Приветственное сообщение
-/character <ID или имя> - Поиск персонажа по ID или имени. Пример: /character 1 или /character Фрирен
-/randomcharacter - Показать случайного персонажа
-/info - Показать это сообщение со списком команд
-`
-		response = tgbotapi.NewMessage(message.Chat.ID, infoText)
-		
+	case CommandStart:
+		response = handlers.HandleStartCommand(message)
+	case CommandInfo:
+		response = handlers.HandleInfoCommand(message)
+	case CommandCharacter:
+		response = handlers.HandleCharacterCommand(b.charRepo, message)
+	case CommandRandomCharacter:
+		response = handlers.HandleRandomCharacterCommand(b.charRepo, message)
 	default:
 		response = tgbotapi.NewMessage(message.Chat.ID, "Я не знаю такой команды.")
 	}
 	
 	if response != nil {
-		_, err = b.api.Send(response)
-		if err != nil {
-			log.Printf("Ошибка отправки ответа: %v", err)
+		if _, err = b.api.Send(response); err != nil {
+			log.Printf("Ошибка отправки ответа: %s", err)
 		}
 	}
 }
