@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -11,25 +12,34 @@ import (
 
 func HandleCharacterCommand(charRepo *characters.CharacterRepository, message *tgbotapi.Message) tgbotapi.Chattable {
 	args := strings.TrimSpace(message.CommandArguments())
-	var char characters.Character
+	
+	var char  characters.Character
 	var found bool
 		
 	if args == "" {
-		msg := "Пожалуйста, укажите имя или ID персонажа. Например: /character Фрирен или /character 1"
-		return tgbotapi.NewMessage(message.Chat.ID, msg)
+		errorText := "Пожалуйста, укажите ID или имя персонажа\\. Например: `/character 1` или `/character Фрирен`"
+		msg := tgbotapi.NewMessage(message.Chat.ID, errorText)
+		msg.ParseMode = tgbotapi.ModeMarkdownV2
+		return msg
 	}
 
-	charID, err := strconv.Atoi(args)
-	if err == nil && charID > 0 {
+	charIDUint64, err := strconv.ParseUint(args, 10, 32)
+	
+	if err == nil {
+		charID := uint(charIDUint64)
+		log.Printf("HandleCharacterCommand: searching by ID: %d", charID)
 		char, found = charRepo.GetCharacterByID(charID)
 	} else {
+		log.Printf("HandleCharacterCommand: searching by Name/AltName: %s", args)
 		char, found = charRepo.GetCharacterByNameOrAlt(args)
 	}
 	
 	if !found {
+		log.Printf("HandleCharacterCommand: Character not found for query: %s", args)
 		msg := fmt.Sprintf("Персонаж '%s' не найден.", args)
 		return tgbotapi.NewMessage(message.Chat.ID, msg)
 	}
 	
+	log.Printf("HandleCharacterCommand: Character found: %s", char.Name)
 	return createCharacterResponseMessage(char, message.Chat.ID)
 }

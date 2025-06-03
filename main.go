@@ -1,16 +1,25 @@
 package main
 
 import (
-	"database/sql"
 	"log"
 	"os"
 
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm" 
 	"github.com/yuniverse-13/Telegram-Waifu-Bot/internal/bot"
 	"github.com/yuniverse-13/Telegram-Waifu-Bot/internal/characters"
 )
 
 func main() {
 	log.Println("Bot starting...")
+	
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found, relying on environment variables")
+	}
 
 	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if botToken == "" {
@@ -23,19 +32,24 @@ func main() {
 	}
 	log.Printf("Using DATABASE_URL: %s\n", connStr)
 	
-	db, err := sql.Open("postgres", connStr)
+	gormDB, err := gorm.Open(postgres.Open(connStr), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to open database connection: %v", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
 	
-	err = db.Ping()
+	sqlDB, err := gormDB.DB()
+	if err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
+	}
+	defer sqlDB.Close()
+	
+	err = sqlDB.Ping()
 	if err != nil {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 	log.Println("Successfully connected to the database!")
 	
-	charRepo := characters.NewCharacterRepository(db)
+	charRepo := characters.NewCharacterRepository(gormDB)
 
 	myBot, err := bot.NewBot(botToken, charRepo)
 	if err != nil {

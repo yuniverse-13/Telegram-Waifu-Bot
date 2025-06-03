@@ -1,97 +1,81 @@
 package characters
 
 import (
-	"database/sql"
+	"errors"
 	"log"
 	"strings"
 
 	"github.com/lib/pq"
+	"gorm.io/gorm"
 )
 
 type Character struct {
 	ID          int
-	Name        string
+	Name        string         `gorm:"uniqueIndex"`
 	Title       string
-	AltNames    []string
+	AltNames    pq.StringArray `gorm:"type:text[]"`
 	Description string
-	ImageURL    string
+	ImageURL    string         `gorm:"column:image_url"`
 	Rating      float32
 }
 
 type CharacterRepository struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
-func NewCharacterRepository(db *sql.DB) *CharacterRepository {
+func NewCharacterRepository(db *gorm.DB) *CharacterRepository {
 	return &CharacterRepository{db: db}
 }
 
-func (r *CharacterRepository) GetCharacterByID(id int) (Character, bool) {
-	char := Character{}
-	err := r.db.QueryRow("SELECT id, name, title, alt_names, description, image_url, rating FROM characters WHERE id = $1", id).
-		Scan(&char.ID, &char.Name, &char.Title, pq.Array(&char.AltNames), &char.Description, &char.ImageURL, &char.Rating)
+func (r *CharacterRepository) GetCharacterByID(id uint) (Character, bool) {
+	var char Character
+	
+	result := r.db.First(&char, id)
 		
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			log.Printf("GetCharacterByID: no character found for ID %d", id)
 			return Character{}, false
 		}
-		log.Printf("Error getting character by ID %d: %v", id, err)
+		log.Printf("GetCharacterByID: error getting character by ID %d: %v", id, result.Error)
 		return Character{}, false
 	}
+	log.Printf("GetCharacterByID: Found character: %+v", char)
 	return char, true
 }
 
 func (r *CharacterRepository) GetCharacterByNameOrAlt(name string) (Character, bool) {
-	char := Character{}
+	var char Character
 	searchLower := strings.ToLower(name)
 	
-	log.Printf("GetCharacterByNameOrAlt: input name='%s', searchLower='%s'", name, searchLower)
+	result := r.db.Where("LOWER(name) = ?", searchLower).
+		Or("? = ANY(LOWER(alt_names::text)::text[])", searchLower).First(&char)
 	
-	query := `
-		SELECT DISTINCT c.id, c.name, c.title, c.alt_names, c.description, c.image_url, c.rating
-		FROM characters c
-		LEFT JOIN unnest(COALESCE(c.alt_names, '{}'::text[])) AS alt_name_element ON true
-		WHERE LOWER(c.name) = $1 OR LOWER(alt_name_element) = $1
-		LIMIT 1;
-	`
-	logQuery := strings.ReplaceAll(strings.ReplaceAll(query, "\n", " "), "\t", "")
-	log.Printf("Executing query: %s with param: %s", logQuery, searchLower)
-	
-	err := r.db.QueryRow(query, searchLower).
-		Scan(&char.ID, &char.Name, &char.Title, pq.Array(&char.AltNames), &char.Description, &char.ImageURL, &char.Rating)
-		
-	if err != nil	{
-		if err == sql.ErrNoRows	{
-			log.Printf("GetCharacterByNameOrAlt: No rows found for '%s'", searchLower)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			log.Printf("GetCharacterByNameOrAlt: no character found for name/alt '%s'", name)
 			return Character{}, false
 		}
-		log.Printf("GetCharacterByNameOrAlt: Error scanning row for '%s': %v", searchLower, err)
+		log.Printf("GetCharacterByNameOrAlt: error scanning row for name/alt '%s': %v", name, result.Error)
 		return Character{}, false
 	}
-	log.Printf("GetCharacterByNameOrAlt: Found character: %+v", char)
+	log.Printf("GetCharacterByNameOrAlt: Found character: %+v for input '%s'", char, name)
 	return char, true
 }
 
 func (r *CharacterRepository) GetRandomCharacter() (Character, bool) {
-	char := Character{}
+	var char Character
 	
-	query := `
-		SELECT id, name, title, alt_names, description, image_url, rating
-		FROM characters
-		ORDER BY RANDOM()
-		LIMIT 1
-	`
+	result := r.db.Order("RANDOM()").Limit(1).First(&char)
 	
-	err := r.db.QueryRow(query).
-		Scan(&char.ID, &char.Name, &char.Title, pq.Array(&char.AltNames), &char.Description, &char.ImageURL, &char.Rating)
-	
-	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Println("No characters in database to pick random from.")
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			log.Println("GetRandomCharacter: no characters in database to pick from.")
 			return Character{}, false
 		}
-		log.Printf("Error getting random character: %v", err)
+		log.Printf("GetRandomCharacter: error getting random character: %v", result.Error)
 		return Character{}, false
 	}
+	log.Printf("GetRandomCharacter: Found random character: %+v", char)
 	return char, true
 }

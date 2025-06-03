@@ -63,7 +63,7 @@ func (b *Bot) Start() error {
 	return nil
 }
 
-func (b *Bot) handlerCommand(message *tgbotapi.Message) {
+func (b *Bot) handlerCommand(message *tgbotapi.Message) {	
 	var response tgbotapi.Chattable
 	var err error
 	
