@@ -7,10 +7,11 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm" 
 	"github.com/yuniverse-13/Telegram-Waifu-Bot/internal/bot"
 	"github.com/yuniverse-13/Telegram-Waifu-Bot/internal/characters"
+	"github.com/yuniverse-13/Telegram-Waifu-Bot/internal/ratings"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -39,7 +40,7 @@ func main() {
 	
 	sqlDB, err := gormDB.DB()
 	if err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+		log.Fatalf("Failed to get underlying sql.DB from GORM: %v", err)
 	}
 	defer sqlDB.Close()
 	
@@ -49,9 +50,10 @@ func main() {
 	}
 	log.Println("Successfully connected to the database!")
 	
-	charRepo := characters.NewCharacterRepository(gormDB)
+	charRepo   := characters.NewCharacterRepository(gormDB)
+	ratingRepo := ratings.NewRepository(gormDB)
 
-	myBot, err := bot.NewBot(botToken, charRepo)
+	myBot, err := bot.NewBot(botToken, charRepo, ratingRepo)
 	if err != nil {
 		log.Fatalf("Failed to create bot: %v", err)
 	}
@@ -59,6 +61,5 @@ func main() {
 	if err := myBot.Start(); err != nil {
 		log.Fatalf("Failed to start bot: %v", err)
 	}
-
 	log.Println("The bot has finished its work.")
 }

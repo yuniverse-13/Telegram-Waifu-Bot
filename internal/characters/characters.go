@@ -10,13 +10,14 @@ import (
 )
 
 type Character struct {
-	ID          int
-	Name        string         `gorm:"uniqueIndex"`
-	Title       string
-	AltNames    pq.StringArray `gorm:"type:text[]"`
-	Description string
-	ImageURL    string         `gorm:"column:image_url"`
-	Rating      float32
+	gorm.Model
+	Name          string         `gorm:"uniqueIndex"`
+	Title         string
+	AltNames      pq.StringArray `gorm:"type:text[]"`
+	Description   string
+	ImageURL      string         `gorm:"column:image_url"`
+	AverageRating float32        `gorm:"default:0.0"`
+	RatingCount   int            `gorm:"default:0"`
 }
 
 type CharacterRepository struct {
@@ -48,15 +49,18 @@ func (r *CharacterRepository) GetCharacterByNameOrAlt(name string) (Character, b
 	var char Character
 	searchLower := strings.ToLower(name)
 	
-	result := r.db.Where("LOWER(name) = ?", searchLower).
-		Or("? = ANY(LOWER(alt_names::text)::text[])", searchLower).First(&char)
+	result := r.db.Where("LOWER(name) = ?", searchLower).First(&char)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		result = r.db.Where("LOWER(name) = ?", searchLower).
+			Or("? = ANY(LOWER(alt_names::text)::text[])", searchLower).First(&char)
+	}
 	
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			log.Printf("GetCharacterByNameOrAlt: no character found for name/alt '%s'", name)
 			return Character{}, false
 		}
-		log.Printf("GetCharacterByNameOrAlt: error scanning row for name/alt '%s': %v", name, result.Error)
+		log.Printf("GetCharacterByNameOrAlt: error for name/alt '%s': %v", name, result.Error)
 		return Character{}, false
 	}
 	log.Printf("GetCharacterByNameOrAlt: Found character: %+v for input '%s'", char, name)
@@ -78,4 +82,12 @@ func (r *CharacterRepository) GetRandomCharacter() (Character, bool) {
 	}
 	log.Printf("GetRandomCharacter: Found random character: %+v", char)
 	return char, true
+}
+
+// Метод для обновления среднего рейтинга и количества оценок персонажа
+func (r *CharacterRepository) UpdateCharacterRatingStats(characterID uint, averageRating float32, ratingCount int) error {
+	return r.db.Model(&Character{}).Where("id = ?", characterID).Updates(map[string]interface{}{
+		"average_rating": averageRating,
+		"rating_count":   ratingCount,
+	}).Error
 }
